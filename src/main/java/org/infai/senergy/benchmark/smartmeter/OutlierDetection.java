@@ -1,0 +1,129 @@
+package org.infai.senergy.benchmark.smartmeter;
+
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.functions;
+import org.apache.spark.sql.streaming.OutputMode;
+import org.apache.spark.sql.streaming.StreamingQueryException;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
+import org.infai.senergy.benchmark.taxi.tasks.predictive.DecisionTreeTrainTaxi;
+import org.infai.senergy.benchmark.taxi.tasks.predictive.LinRegTrainTaxi;
+import org.infai.senergy.benchmark.util.SmartmeterSchema;
+import org.infai.senergy.benchmark.util.TaxiSchema;
+
+
+public class OutlierDetection {
+    public static void main(String args[]) throws Exception {
+        //Usage check
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.StreamingBenchmark <logging> <hostlist> <topics> <updateInterval>\n" +
+                "logging = boolean\n" +
+                "hostlist = comma-separated list of kafka host:port\n" +
+                "topic = Topic to use. Topic will be subscribed to and will use <topic>-<task> as publish topic.\n" +
+                "updateInterval = Integer value in millis after which models should be updated.";
+
+        if (args.length != 4) {
+            System.out.println(errorMessage);
+            return;
+        }
+        //Parameter configuration
+        boolean loggingEnabled;
+        String hostlist;
+        String topics;
+        int updateInterval;
+        try {
+            loggingEnabled = Boolean.parseBoolean(args[0]);
+            hostlist = args[1];
+            topics = args[2];
+            updateInterval = Integer.parseInt(args[3]);
+        } catch (Exception e) {
+            System.out.println(errorMessage);
+            return;
+        }
+
+        //Create Session
+        SparkSession spark = SparkSession
+                .builder()
+                .appName("SmartMeter OutlierDetection")
+                .config("spark.eventLog.enabled", loggingEnabled)
+                .getOrCreate();
+
+        //Create DataSet representing the stream of input lines from kafka
+        Dataset<Row> ds = spark
+                .readStream()
+                .format("kafka")
+                .option("kafka.bootstrap.servers", hostlist)
+                .option("subscribe", topics)
+                .load();
+
+        //Prepare the schema
+        StructType schema = SmartmeterSchema.getSchema();
+
+        //Parse Kafka value to Dataframe (via json)
+        Dataset<Row> df = ds.select(functions.from_json(ds.col("value").cast(DataTypes.StringType), schema)
+                .as("data"))
+                .select("data.*");
+        df = TaxiSchema.applySchema(df);
+
+
+        //Run the average task
+        df.select(functions.avg(" fare_amount"))
+                .writeStream()
+                .format("kafka")
+                .option("kafka.bootstrap.servers", hostlist)
+                .option("topic", topics + "-avg")
+                .option("checkpointLocation", "jona/checkpointing/avg") //TODO make variable
+                .outputMode(OutputMode.Complete())
+                .start();
+
+        //Start Linear Regression training task
+        LinRegTrainTaxi lrtt = new LinRegTrainTaxi(spark, hostlist, topics, updateInterval);
+        new Thread(lrtt).start();
+
+        //Start DecisionTree training task
+        DecisionTreeTrainTaxi dttt = new DecisionTreeTrainTaxi(spark, hostlist, topics, updateInterval);
+        new Thread(dttt).start();
+
+        //Wait for models and then start Streaming Classification tasks
+        boolean linModelReady = false;
+        boolean treeModelReady = false;
+        while (!linModelReady || !treeModelReady) { //Wait for both models
+            if (!linModelReady) {
+                if (lrtt.isModelReady()) {
+                    linModelReady = true;
+                    lrtt.getLatestModel()
+                            .transform(lrtt.prepareFeatures(df))
+                            .writeStream()
+                            .format("kafka")
+                            .option("kafka.bootstrap.servers", hostlist)
+                            .option("topic", topics + "-lr")
+                            .start();
+                }
+            }
+            if (!treeModelReady) {
+                if (dttt.isModelReady()) {
+                    treeModelReady = true;
+                    dttt.getLatestModel()
+                            .transform(dttt.prepareFeatures(df))
+                            .writeStream()
+                            .format("kafka")
+                            .option("kafka.bootstrap.servers", hostlist)
+                            .option("topic", topics + "-dt")
+                            .start();
+                }
+            }
+            Thread.sleep(100);
+        }
+
+        // Wait for termination
+        try {
+            spark.streams().awaitAnyTermination();
+        } catch (StreamingQueryException sqe) {
+            System.out.println("Encountered StreamingQueryException while waiting for Termination. Did you try to exit the program?");
+            sqe.printStackTrace();
+        } finally {
+            spark.close();
+        }
+    }
+}
