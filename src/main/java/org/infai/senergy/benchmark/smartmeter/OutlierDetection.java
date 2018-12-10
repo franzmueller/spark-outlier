@@ -1,17 +1,13 @@
 package org.infai.senergy.benchmark.smartmeter;
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.functions;
+import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.MapGroupsWithStateFunction;
+import org.apache.spark.sql.*;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.infai.senergy.benchmark.taxi.tasks.predictive.DecisionTreeTrainTaxi;
-import org.infai.senergy.benchmark.taxi.tasks.predictive.LinRegTrainTaxi;
 import org.infai.senergy.benchmark.util.SmartmeterSchema;
-import org.infai.senergy.benchmark.util.TaxiSchema;
 
 
 public class OutlierDetection {
@@ -64,19 +60,18 @@ public class OutlierDetection {
         Dataset<Row> df = ds.select(functions.from_json(ds.col("value").cast(DataTypes.StringType), schema)
                 .as("data"))
                 .select("data.*");
-        df = TaxiSchema.applySchema(df);
+            //TODO we might encounter a problem here with string en/decoding frm kafka json message
 
+        //Add CONSUMPTION_DIFF column
+       df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
+               .mapGroupsWithState(new Diff(), Encoders.DOUBLE(), Encoders.DOUBLE())
+               .writeStream()
+               .outputMode(OutputMode.Update())
+               .format("console")
+               .start();
 
-        //Run the average task
-        df.select(functions.avg(" fare_amount"))
-                .writeStream()
-                .format("kafka")
-                .option("kafka.bootstrap.servers", hostlist)
-                .option("topic", topics + "-avg")
-                .option("checkpointLocation", "jona/checkpointing/avg") //TODO make variable
-                .outputMode(OutputMode.Complete())
-                .start();
-
+        df.writeStream().format("console").start();
+    /*
         //Start Linear Regression training task
         LinRegTrainTaxi lrtt = new LinRegTrainTaxi(spark, hostlist, topics, updateInterval);
         new Thread(lrtt).start();
@@ -115,6 +110,7 @@ public class OutlierDetection {
             }
             Thread.sleep(100);
         }
+    */
 
         // Wait for termination
         try {

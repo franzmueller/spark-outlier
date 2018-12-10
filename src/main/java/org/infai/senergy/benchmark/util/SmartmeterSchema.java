@@ -7,8 +7,8 @@ public class SmartmeterSchema {
     public static StructType getSchema() {
         return new StructType()
                 .add("SEGMENT", DataTypes.StringType)
-                .add(" METER_ID", DataTypes.StringType)
-                .add(" CONSUMPTION", DataTypes.DoubleType)
-                .add(" TIMESTAMP_UTC", DataTypes.TimestampType);
+                .add("METER_ID", DataTypes.StringType)
+                .add("CONSUMPTION", DataTypes.DoubleType)
+                .add("TIMESTAMP_UTC", DataTypes.TimestampType);
     }
 }
