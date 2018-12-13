@@ -11,7 +11,7 @@ import java.util.Iterator;
 import java.util.List;
 
 
-public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, TimestampDoublePair,Double> {
+public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, TimestampDoublePair,RowWithDiff> {
 
 
     public FlatDiff(){
@@ -20,11 +20,12 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
 
     //Update function
     @Override
-    public Iterator<Double> call(String key, Iterator<Row> values, GroupState<TimestampDoublePair> state) {
-        List<Double> diffs = new ArrayList<>();
+    public Iterator<RowWithDiff> call(String key, Iterator<Row> values, GroupState<TimestampDoublePair> state) {
+        List<RowWithDiff> rowsWithDiff = new ArrayList<>();
         Double oldValue = 0.0, diff = 0.0, newValue;
         Timestamp oldTime, newTime;
         TimestampDoublePair newState;
+        RowWithDiff newRowWithDiff;
 
         Row row;
         while(values.hasNext()) {
@@ -41,20 +42,26 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
             newTime = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
 
             int timeDiff;
-            if((timeDiff = newTime.compareTo(oldTime)) > 0) {
-                diff = (newValue - oldValue) / ((double) timeDiff);
-            }else{
-                diff = 0.0; //Out of order or same timestamp TODO better solution
-            }
+            if((timeDiff = newTime.compareTo(oldTime)) <= 0)
+                continue; //Out of order. Will skip this value and won't take it into consideration
 
-            diffs.add(diff);
+            diff = (newValue - oldValue) / ((double) timeDiff);
+
+            newRowWithDiff = new RowWithDiff();
+            newRowWithDiff.setCONSUMPTION(newValue);
+            newRowWithDiff.setDIFF(diff);
+            newRowWithDiff.setMETER_ID(key);
+            newRowWithDiff.setTIMESTAMP_UTC(newTime);
+            newRowWithDiff.setSEGMENT(row.getString(row.fieldIndex("SEGMENT")));
+
+            rowsWithDiff.add(newRowWithDiff);
             newState = new TimestampDoublePair();
             newState.setTime(newTime);
             newState.setValue(newValue);
             state.update(newState);
         }
 
-        return diffs.iterator();
+        return rowsWithDiff.iterator();
     }
 
 

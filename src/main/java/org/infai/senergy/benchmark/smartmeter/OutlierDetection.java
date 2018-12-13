@@ -9,6 +9,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.infai.senergy.benchmark.smartmeter.util.ConsumptionMapper;
 import org.infai.senergy.benchmark.smartmeter.util.FlatDiff;
+import org.infai.senergy.benchmark.smartmeter.util.RowWithDiff;
 import org.infai.senergy.benchmark.smartmeter.util.TimestampDoublePair;
 import org.infai.senergy.benchmark.util.SmartmeterSchema;
 
@@ -63,15 +64,14 @@ public class OutlierDetection {
         Dataset<Row> df = ds.select(functions.from_json(ds.col("value").cast(DataTypes.StringType), schema)
                 .as("data"))
                 .select("data.*");
-            //TODO we might encounter a problem here with string en/decoding frm kafka json message
 
         //Add CONSUMPTION_DIFF column
         df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
-               .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.DOUBLE(), GroupStateTimeout.NoTimeout())
+               .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout())
                .writeStream()
                .outputMode(OutputMode.Append())
                .format("console")
-               .start();
+               .start(); //TODO no output??
 
         df.writeStream().format("console").start(); //Just to see which data arrived
 
