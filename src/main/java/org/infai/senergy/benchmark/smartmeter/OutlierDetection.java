@@ -1,12 +1,15 @@
 package org.infai.senergy.benchmark.smartmeter;
 
 import org.apache.spark.api.java.function.MapFunction;
-import org.apache.spark.api.java.function.MapGroupsWithStateFunction;
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.streaming.GroupStateTimeout;
 import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
+import org.infai.senergy.benchmark.smartmeter.util.ConsumptionMapper;
+import org.infai.senergy.benchmark.smartmeter.util.FlatDiff;
+import org.infai.senergy.benchmark.smartmeter.util.TimestampDoublePair;
 import org.infai.senergy.benchmark.util.SmartmeterSchema;
 
 
@@ -63,54 +66,14 @@ public class OutlierDetection {
             //TODO we might encounter a problem here with string en/decoding frm kafka json message
 
         //Add CONSUMPTION_DIFF column
-       df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
-               .mapGroupsWithState(new Diff(), Encoders.DOUBLE(), Encoders.DOUBLE())
+        df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
+               .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.DOUBLE(), GroupStateTimeout.NoTimeout())
                .writeStream()
-               .outputMode(OutputMode.Update())
+               .outputMode(OutputMode.Append())
                .format("console")
                .start();
 
-        df.writeStream().format("console").start();
-    /*
-        //Start Linear Regression training task
-        LinRegTrainTaxi lrtt = new LinRegTrainTaxi(spark, hostlist, topics, updateInterval);
-        new Thread(lrtt).start();
-
-        //Start DecisionTree training task
-        DecisionTreeTrainTaxi dttt = new DecisionTreeTrainTaxi(spark, hostlist, topics, updateInterval);
-        new Thread(dttt).start();
-
-        //Wait for models and then start Streaming Classification tasks
-        boolean linModelReady = false;
-        boolean treeModelReady = false;
-        while (!linModelReady || !treeModelReady) { //Wait for both models
-            if (!linModelReady) {
-                if (lrtt.isModelReady()) {
-                    linModelReady = true;
-                    lrtt.getLatestModel()
-                            .transform(lrtt.prepareFeatures(df))
-                            .writeStream()
-                            .format("kafka")
-                            .option("kafka.bootstrap.servers", hostlist)
-                            .option("topic", topics + "-lr")
-                            .start();
-                }
-            }
-            if (!treeModelReady) {
-                if (dttt.isModelReady()) {
-                    treeModelReady = true;
-                    dttt.getLatestModel()
-                            .transform(dttt.prepareFeatures(df))
-                            .writeStream()
-                            .format("kafka")
-                            .option("kafka.bootstrap.servers", hostlist)
-                            .option("topic", topics + "-dt")
-                            .start();
-                }
-            }
-            Thread.sleep(100);
-        }
-    */
+        df.writeStream().format("console").start(); //Just to see which data arrived
 
         // Wait for termination
         try {
