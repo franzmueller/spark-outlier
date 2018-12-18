@@ -15,28 +15,29 @@ import org.infai.senergy.benchmark.util.SmartmeterSchema;
 
 
 public class OutlierDetection {
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) {
         //Usage check
-        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.StreamingBenchmark <logging> <hostlist> <topics> <sigma>\n" +
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.StreamingBenchmark <logging> <hostlist> <inputTopic> <outputTopic> <sigma>\n" +
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
-                "topic = Topic to use. Topic will be subscribed to and will use <topic>-<task> as publish topic.\n" +
+                "inputTopic = Topic will be subscribed to.\n" +
+                "outputTopic = Output topic, where values will be written to\n" +
                 "sigma = Integer value. How many standard deviations above average is considered an outlier?";
 
-        if (args.length != 4) {
+        if (args.length != 5) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
         boolean loggingEnabled;
-        String hostlist;
-        String topics;
+        String hostlist, inputTopic, outputTopic;
         int sigma;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
             hostlist = args[1];
-            topics = args[2];
-            sigma = Integer.parseInt(args[3]);
+            inputTopic = args[2];
+            outputTopic = args[3];
+            sigma = Integer.parseInt(args[4]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -54,7 +55,7 @@ public class OutlierDetection {
                 .readStream()
                 .format("kafka")
                 .option("kafka.bootstrap.servers", hostlist)
-                .option("subscribe", topics)
+                .option("subscribe", inputTopic)
                 .load();
 
         //Prepare the schema
@@ -71,9 +72,17 @@ public class OutlierDetection {
 
         diffed.groupBy("METER_ID").agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF")).writeStream().format("memory")
                 .queryName("stats").outputMode(OutputMode.Complete()).start();
-        diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID")
-                .where("DIFF > AVG_DIFF + " + sigma + " * STDDEV_DIFF")
-                .writeStream().format("console").start();
+        Dataset<Row> diffedStats = diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID");
+        Dataset<Row> outliers = diffedStats.withColumn("SIGMA", diffedStats.col("DIFF").minus(diffedStats.col("AVG_DIFF")).divide(diffedStats.col("STDDEV_DIFF")))
+                .where("SIGMA > " + sigma);
+
+        outliers.toJSON()
+                .writeStream()
+                .format("kafka")
+                .option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
+                .option("kafka.bootstrap.servers", hostlist)
+                .option("topic", outputTopic)
+                .start();
 
         // Wait for termination
         try {
