@@ -1,9 +1,10 @@
 package org.infai.senergy.benchmark.smartmeter.util;
 
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.streaming.GroupState;
-import org.infai.senergy.benchmark.smartmeter.util.TimestampDoublePair;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -13,16 +14,18 @@ import java.util.List;
 
 public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, TimestampDoublePair,RowWithDiff> {
 
+    private transient Logger logger;
 
     public FlatDiff(){
         super();
+        logger = LogManager.getLogger(this.getClass());
     }
 
     //Update function
     @Override
     public Iterator<RowWithDiff> call(String key, Iterator<Row> values, GroupState<TimestampDoublePair> state) {
         List<RowWithDiff> rowsWithDiff = new ArrayList<>();
-        Double oldValue = 0.0, diff = 0.0, newValue;
+        Double oldValue, diff, newValue;
         Timestamp oldTime, newTime;
         TimestampDoublePair newState;
         RowWithDiff newRowWithDiff;
@@ -30,23 +33,21 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
         Row row;
         while(values.hasNext()) {
             row = values.next();
+            newValue = row.getDouble(row.fieldIndex("CONSUMPTION"));
+            newTime = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
             if(state.exists()) {
                 oldValue = state.get().getValue();
                 oldTime = state.get().getTime();
+
+                long timeDiff;
+                if ((timeDiff = newTime.getTime() - oldTime.getTime()) <= 0) {
+                    logger.info("Skipping row with timestamp " + newTime + ": Out of order or seen before!");
+                    continue; //Out of order or same timestamp. Skip this value and won't take it into consideration.
+                }
+                diff = (newValue - oldValue) / ((double) timeDiff);
             }else{
-                //Old=New --> Diff=0
-                oldValue  = row.getDouble(row.fieldIndex("CONSUMPTION"));
-                oldTime = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
+                diff = 0.0;
             }
-            newValue = row.getDouble(row.fieldIndex("CONSUMPTION"));
-            newTime = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
-
-            int timeDiff;
-            if((timeDiff = newTime.compareTo(oldTime)) <= 0)
-                continue; //Out of order. Will skip this value and won't take it into consideration
-
-            diff = (newValue - oldValue) / ((double) timeDiff);
-
             newRowWithDiff = new RowWithDiff();
             newRowWithDiff.setCONSUMPTION(newValue);
             newRowWithDiff.setDIFF(diff);
@@ -60,7 +61,6 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
             newState.setValue(newValue);
             state.update(newState);
         }
-
         return rowsWithDiff.iterator();
     }
 
