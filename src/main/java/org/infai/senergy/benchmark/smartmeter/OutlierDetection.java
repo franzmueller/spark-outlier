@@ -17,11 +17,11 @@ import org.infai.senergy.benchmark.util.SmartmeterSchema;
 public class OutlierDetection {
     public static void main(String[] args) throws Exception {
         //Usage check
-        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.StreamingBenchmark <logging> <hostlist> <topics> <updateInterval>\n" +
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.StreamingBenchmark <logging> <hostlist> <topics> <sigma>\n" +
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "topic = Topic to use. Topic will be subscribed to and will use <topic>-<task> as publish topic.\n" +
-                "updateInterval = Integer value in millis after which models should be updated.";
+                "sigma = Integer value. How many standard deviations above average is considered an outlier?";
 
         if (args.length != 4) {
             System.out.println(errorMessage);
@@ -31,12 +31,12 @@ public class OutlierDetection {
         boolean loggingEnabled;
         String hostlist;
         String topics;
-        int updateInterval;
+        int sigma;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
             hostlist = args[1];
             topics = args[2];
-            updateInterval = Integer.parseInt(args[3]);
+            sigma = Integer.parseInt(args[3]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -69,14 +69,12 @@ public class OutlierDetection {
         Dataset<Row> diffed = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
                 .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
 
-        //df.writeStream().format("console").start(); //TODO Just to see which data arrived
-        //diffed.writeStream().format("console").start(); //TODO just to see diffs
-
         diffed.groupBy("METER_ID").agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF")).writeStream().format("memory")
                 .queryName("stats").outputMode(OutputMode.Complete()).start();
-        diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID").writeStream().format("console").start();
+        diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID")
+                .where("DIFF > AVG_DIFF + " + sigma + " * STDDEV_DIFF")
+                .writeStream().format("console").start();
 
-        //diffed.groupBy("METER_ID").avg("DIFF").writeStream().format("console").outputMode(OutputMode.Complete()).start();
         // Wait for termination
         try {
             spark.streams().awaitAnyTermination();
