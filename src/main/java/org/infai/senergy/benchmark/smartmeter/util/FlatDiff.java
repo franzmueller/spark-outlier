@@ -1,7 +1,5 @@
 package org.infai.senergy.benchmark.smartmeter.util;
 
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.streaming.GroupState;
@@ -14,11 +12,9 @@ import java.util.List;
 
 public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, TimestampDoublePair,RowWithDiff> {
 
-    private transient Logger logger;
 
     public FlatDiff(){
         super();
-        logger = LogManager.getLogger(this.getClass());
     }
 
     //Update function
@@ -41,7 +37,6 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
 
                 long timeDiff;
                 if ((timeDiff = newTime.getTime() - oldTime.getTime()) <= 0) {
-                    logger.info("Skipping row with timestamp " + newTime + ": Out of order or seen before!");
                     continue; //Out of order or same timestamp. Skip this value and won't take it into consideration.
                 }
                 diff = (newValue - oldValue) / ((double) timeDiff);

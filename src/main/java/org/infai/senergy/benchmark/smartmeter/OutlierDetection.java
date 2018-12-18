@@ -69,11 +69,14 @@ public class OutlierDetection {
         Dataset<Row> diffed = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
                 .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
 
-        df.writeStream().format("console").start(); //TODO Just to see which data arrived
-        diffed.writeStream().format("console").start(); //TODO just to see diffs
+        //df.writeStream().format("console").start(); //TODO Just to see which data arrived
+        //diffed.writeStream().format("console").start(); //TODO just to see diffs
 
-        //diffed.where("DIFF>"+functions.avg(diffed.col("DIFF"))).writeStream().format("console").start();
+        diffed.groupBy("METER_ID").agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF")).writeStream().format("memory")
+                .queryName("stats").outputMode(OutputMode.Complete()).start();
+        diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID").writeStream().format("console").start();
 
+        //diffed.groupBy("METER_ID").avg("DIFF").writeStream().format("console").outputMode(OutputMode.Complete()).start();
         // Wait for termination
         try {
             spark.streams().awaitAnyTermination();
