@@ -68,22 +68,28 @@ public class OutlierDetection {
 
         //Add CONSUMPTION_DIFF column
         Dataset<Row> diffed = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
-                .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
+                .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout())
+                .withWatermark("TIMESTAMP_UTC", "10 years");
 
-        diffed.groupBy("METER_ID").agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF")).writeStream().format("memory")
-                .queryName("stats").outputMode(OutputMode.Complete()).start();
-        Dataset<Row> diffedStats = diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID");
+
+        Dataset<Row> stats = diffed.groupBy(functions.col("METER_ID"), functions.window(functions.col("TIMESTAMP_UTC"), "28 days"))
+                .agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF"));
+        Dataset<Row> diffedStats = diffed.withColumnRenamed("METER_ID", "METER_ID2")
+                .join(stats, functions.col("METER_ID").equalTo(functions.col("METER_ID2"))
+                        .and(functions.col("TIMESTAMP_UTC").between(functions.col("window.start"), functions.col("window.end"))));
         Dataset<Row> outliers = diffedStats.withColumn("SIGMA", diffedStats.col("DIFF").minus(diffedStats.col("AVG_DIFF")).divide(diffedStats.col("STDDEV_DIFF")))
                 .where("SIGMA > " + sigma);
+        diffedStats.writeStream().format("console").start();
+        outliers.writeStream().format("console").start();
 
-        outliers.toJSON()
+    /*    outliers.toJSON()
                 .writeStream()
                 .format("kafka")
                 .option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("topic", outputTopic)
                 .start();
-
+    */
         // Wait for termination
         try {
             spark.streams().awaitAnyTermination();
