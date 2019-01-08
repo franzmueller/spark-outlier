@@ -27,10 +27,16 @@ public class Importer {
         datasets[7] = importSingleFile(path + "31-08-2013_31-10-2013.csv", spark, true);
         datasets[8] = importSingleFile(path + "31-08-2014_01-10-2014.csv", spark, true);
         datasets[9] = importSingleFile(path + "31-10-2013_30-03-2014.csv", spark, true);
+        for (int i = 0; i <= 8; i++) {
+            datasets[i] = datasets[i].withColumn("CONSUMPTION", datasets[i].col("CONSUMPTION").divide(1000));
+        }
+
 
         Dataset<Row> allFiles = datasets[0].union(datasets[1]).union(datasets[2]).union(datasets[3])
                 .union(datasets[4]).union(datasets[5]).union(datasets[6]).union(datasets[7])
                 .union(datasets[8]).union(datasets[9]);
+
+        allFiles = allFiles.dropDuplicates();
 
         ArrayList<String> joinEx = new ArrayList<>();
         joinEx.add("METER_ID");

@@ -6,11 +6,11 @@ import org.apache.spark.sql.SparkSession;
 
 
 public class Converter {
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         //Usage check
         String errorMessage = "Usage: org.infai.senergy.benchmark.util.Converter <logging> <path>\n" +
                 "logging = boolean\n" +
-                "path = path to Taxi data base folder\n";
+                "path = path to smartmeter data base folder\n";
 
         if (args.length != 2) {
             System.out.println(errorMessage);
@@ -40,10 +40,10 @@ public class Converter {
 
         ds.write()
                 .option("compression", "gzip")
-                .json(path+"all.csv");
+                .json(path + "json");
         ds.write()
                 .option("header", "true").option("compression","gzip")
-                .csv(path+"all.json");
+                .csv(path + "csv");
 
     }
 
