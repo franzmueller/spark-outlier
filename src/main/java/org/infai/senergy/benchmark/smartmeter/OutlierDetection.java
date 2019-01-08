@@ -9,8 +9,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.infai.senergy.benchmark.smartmeter.util.ConsumptionMapper;
 import org.infai.senergy.benchmark.smartmeter.util.FlatDiff;
+import org.infai.senergy.benchmark.smartmeter.util.GroupStateContainer;
 import org.infai.senergy.benchmark.smartmeter.util.RowWithDiff;
-import org.infai.senergy.benchmark.smartmeter.util.TimestampDoublePair;
 import org.infai.senergy.benchmark.util.SmartmeterSchema;
 
 
@@ -68,19 +68,13 @@ public class OutlierDetection {
 
         //Add CONSUMPTION_DIFF column
         Dataset<Row> diffed = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
-                .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout())
-                .withWatermark("TIMESTAMP_UTC", "10 years");
+                .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(GroupStateContainer.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
+        diffed.writeStream().format("console").queryName("diffed").start();//TODO
 
-
-        Dataset<Row> stats = diffed.groupBy(functions.col("METER_ID"), functions.window(functions.col("TIMESTAMP_UTC"), "28 days"))
-                .agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF"));
-        Dataset<Row> diffedStats = diffed.withColumnRenamed("METER_ID", "METER_ID2")
-                .join(stats, functions.col("METER_ID").equalTo(functions.col("METER_ID2"))
-                        .and(functions.col("TIMESTAMP_UTC").between(functions.col("window.start"), functions.col("window.end"))));
-        Dataset<Row> outliers = diffedStats.withColumn("SIGMA", diffedStats.col("DIFF").minus(diffedStats.col("AVG_DIFF")).divide(diffedStats.col("STDDEV_DIFF")))
+        Dataset<Row> outliers = diffed.withColumn("SIGMA", diffed.col("DIFF").minus(diffed.col("AVG_DIFF")).divide(diffed.col("STDDEV_DIFF")))
                 .where("SIGMA > " + sigma);
-        diffedStats.writeStream().format("console").start();
-        outliers.writeStream().format("console").start();
+
+        outliers.writeStream().format("console").queryName("outliers").start();//TODO
 
     /*    outliers.toJSON()
                 .writeStream()
