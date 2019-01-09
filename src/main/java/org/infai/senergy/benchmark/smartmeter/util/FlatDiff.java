@@ -10,7 +10,7 @@ import java.util.Iterator;
 import java.util.List;
 
 
-public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, TimestampDoublePair,RowWithDiff> {
+public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, GroupStateContainer, RowWithDiff> {
 
 
     public FlatDiff(){
@@ -19,12 +19,13 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
 
     //Update function
     @Override
-    public Iterator<RowWithDiff> call(String key, Iterator<Row> values, GroupState<TimestampDoublePair> state) {
+    public Iterator<RowWithDiff> call(String key, Iterator<Row> values, GroupState<GroupStateContainer> state) {
         List<RowWithDiff> rowsWithDiff = new ArrayList<>();
-        Double oldValue, diff, newValue;
+        Double oldValue, diff, newValue, avg, stddev;
         Timestamp oldTime, newTime;
-        TimestampDoublePair newState;
+        GroupStateContainer newState;
         RowWithDiff newRowWithDiff;
+        List<Double> diffs;
 
         Row row;
         while(values.hasNext()) {
@@ -34,14 +35,35 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
             if(state.exists()) {
                 oldValue = state.get().getValue();
                 oldTime = state.get().getTime();
+                diffs = state.get().getDiffs();
 
                 long timeDiff;
                 if ((timeDiff = newTime.getTime() - oldTime.getTime()) <= 0) {
                     continue; //Out of order or same timestamp. Skip this value and won't take it into consideration.
                 }
                 diff = (newValue - oldValue) / ((double) timeDiff);
+                diffs.add(diff);
+
+                //Compute average
+                double sum = 0.0;
+                for (Double d : diffs) {
+                    sum += d;
+                }
+                avg = sum / diffs.size();
+
+                //Compute stddev
+                sum = 0.0;
+                for (Double d : diffs) {
+                    sum += (d - avg) * (d - avg);
+                }
+                sum /= diffs.size();
+                stddev = Math.sqrt(sum);
             }else{
                 diff = 0.0;
+                diffs = new ArrayList<>();
+                diffs.add(diff);
+                avg = diff;
+                stddev = 0.0;
             }
             newRowWithDiff = new RowWithDiff();
             newRowWithDiff.setCONSUMPTION(newValue);
@@ -49,11 +71,14 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String,Row, Time
             newRowWithDiff.setMETER_ID(key);
             newRowWithDiff.setTIMESTAMP_UTC(newTime);
             newRowWithDiff.setSEGMENT(row.getString(row.fieldIndex("SEGMENT")));
+            newRowWithDiff.setAVG_DIFF(avg);
+            newRowWithDiff.setSTDDEV_DIFF(stddev);
 
             rowsWithDiff.add(newRowWithDiff);
-            newState = new TimestampDoublePair();
+            newState = new GroupStateContainer();
             newState.setTime(newTime);
             newState.setValue(newValue);
+            newState.setDiffs(diffs);
             state.update(newState);
         }
         return rowsWithDiff.iterator();

@@ -8,6 +8,8 @@ public class RowWithDiff implements Serializable {
     protected String SEGMENT;
     protected double CONSUMPTION;
     protected double DIFF;
+    protected double AVG_DIFF;
+    protected double STDDEV_DIFF;
     protected Timestamp TIMESTAMP_UTC;
 
     public String getMETER_ID() {
@@ -48,5 +50,21 @@ public class RowWithDiff implements Serializable {
 
     public void setTIMESTAMP_UTC(Timestamp TIMESTAMP_UTC) {
         this.TIMESTAMP_UTC = TIMESTAMP_UTC;
+    }
+
+    public double getAVG_DIFF() {
+        return AVG_DIFF;
+    }
+
+    public void setAVG_DIFF(double AVG_DIFF) {
+        this.AVG_DIFF = AVG_DIFF;
+    }
+
+    public double getSTDDEV_DIFF() {
+        return STDDEV_DIFF;
+    }
+
+    public void setSTDDEV_DIFF(double STDDEV_DIFF) {
+        this.STDDEV_DIFF = STDDEV_DIFF;
     }
 }

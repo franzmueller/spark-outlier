@@ -1,0 +1,6 @@
+append mode hält daten zurück bis watermark abgelaufen ist. watermark muss für historische daten sehr hoch sein, damit sie nicht verworfen werden
+avg und stdddev lassen sich nur auf zeitmäßig gruppierten daten (also mit watermark) berechnen, außer der output mode ist update oder complete
+complete oder update mode halten daten nicht zurück.
+ABER: flatmmapgroupswithstate (benötigt um diffs zu berechnen) benötigt append mode:
+
+ Multiple flatMapGroupsWithStates are not supported when they are not all in append mode or the output mode is not append on a streaming DataFrames/Datasets;;

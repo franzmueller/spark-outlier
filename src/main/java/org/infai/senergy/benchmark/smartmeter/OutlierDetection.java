@@ -9,8 +9,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 import org.infai.senergy.benchmark.smartmeter.util.ConsumptionMapper;
 import org.infai.senergy.benchmark.smartmeter.util.FlatDiff;
+import org.infai.senergy.benchmark.smartmeter.util.GroupStateContainer;
 import org.infai.senergy.benchmark.smartmeter.util.RowWithDiff;
-import org.infai.senergy.benchmark.smartmeter.util.TimestampDoublePair;
 import org.infai.senergy.benchmark.util.SmartmeterSchema;
 
 
@@ -22,7 +22,7 @@ public class OutlierDetection {
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "inputTopic = Topic will be subscribed to.\n" +
                 "outputTopic = Output topic, where values will be written to\n" +
-                "sigma = Integer value. How many standard deviations above average is considered an outlier?";
+                "sigma = Integer value. How many standard deviations above or bellow average is considered an outlier?";
 
         if (args.length != 5) {
             System.out.println(errorMessage);
@@ -68,14 +68,13 @@ public class OutlierDetection {
 
         //Add CONSUMPTION_DIFF column
         Dataset<Row> diffed = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
-                .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(TimestampDoublePair.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
+                .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(GroupStateContainer.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
 
-        diffed.groupBy("METER_ID").agg(functions.avg("DIFF").as("AVG_DIFF"), functions.stddev("DIFF").as("STDDEV_DIFF")).writeStream().format("memory")
-                .queryName("stats").outputMode(OutputMode.Complete()).start();
-        Dataset<Row> diffedStats = diffed.join(spark.sql("SELECT * FROM stats"), "METER_ID");
-        Dataset<Row> outliers = diffedStats.withColumn("SIGMA", diffedStats.col("DIFF").minus(diffedStats.col("AVG_DIFF")).divide(diffedStats.col("STDDEV_DIFF")))
-                .where("SIGMA > " + sigma);
+        //Detect outliers
+        Dataset<Row> outliers = diffed.withColumn("SIGMA", diffed.col("DIFF").minus(diffed.col("AVG_DIFF")).divide(diffed.col("STDDEV_DIFF")))
+                .where("SIGMA > " + sigma + " OR SIGMA < " + (sigma * -1));
 
+        //Write outliers to kafka
         outliers.toJSON()
                 .writeStream()
                 .format("kafka")
