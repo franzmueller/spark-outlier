@@ -22,7 +22,7 @@ public class OutlierDetection {
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "inputTopic = Topic will be subscribed to.\n" +
                 "outputTopic = Output topic, where values will be written to\n" +
-                "sigma = Integer value. How many standard deviations above average is considered an outlier?";
+                "sigma = Integer value. How many standard deviations above or bellow average is considered an outlier?";
 
         if (args.length != 5) {
             System.out.println(errorMessage);
@@ -69,21 +69,20 @@ public class OutlierDetection {
         //Add CONSUMPTION_DIFF column
         Dataset<Row> diffed = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
                 .flatMapGroupsWithState(new FlatDiff(), OutputMode.Append(), Encoders.bean(GroupStateContainer.class), Encoders.bean(RowWithDiff.class), GroupStateTimeout.NoTimeout());
-        diffed.writeStream().format("console").queryName("diffed").start();//TODO
 
+        //Detect outliers
         Dataset<Row> outliers = diffed.withColumn("SIGMA", diffed.col("DIFF").minus(diffed.col("AVG_DIFF")).divide(diffed.col("STDDEV_DIFF")))
-                .where("SIGMA > " + sigma);
+                .where("SIGMA > " + sigma + " OR SIGMA < " + (sigma * -1));
 
-        outliers.writeStream().format("console").queryName("outliers").start();//TODO
-
-    /*    outliers.toJSON()
+        //Write outliers to kafka
+        outliers.toJSON()
                 .writeStream()
                 .format("kafka")
                 .option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("topic", outputTopic)
                 .start();
-    */
+
         // Wait for termination
         try {
             spark.streams().awaitAnyTermination();

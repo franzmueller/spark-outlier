@@ -56,7 +56,7 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
                 for (Double d : diffs) {
                     sum += (d - avg) * (d - avg);
                 }
-                sum = sum / diffs.size();
+                sum /= diffs.size();
                 stddev = Math.sqrt(sum);
             }else{
                 diff = 0.0;
@@ -73,7 +73,6 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
             newRowWithDiff.setSEGMENT(row.getString(row.fieldIndex("SEGMENT")));
             newRowWithDiff.setAVG_DIFF(avg);
             newRowWithDiff.setSTDDEV_DIFF(stddev);
-            //TODO add avg and stddev
 
             rowsWithDiff.add(newRowWithDiff);
             newState = new GroupStateContainer();
