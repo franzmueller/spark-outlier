@@ -56,6 +56,7 @@ public class OutlierDetection {
                 .format("kafka")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("subscribe", inputTopic)
+                .option("startingOffsets", "earliest")
                 .load();
 
         //Prepare the schema
