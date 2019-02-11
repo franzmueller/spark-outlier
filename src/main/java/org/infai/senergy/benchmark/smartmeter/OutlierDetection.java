@@ -17,14 +17,16 @@ import org.infai.senergy.benchmark.util.SmartmeterSchema;
 public class OutlierDetection {
     public static void main(String[] args) {
         //Usage check
-        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.StreamingBenchmark <logging> <hostlist> <inputTopic> <outputTopic> <sigma>\n" +
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.OutlierDetection <logging> <hostlist> <inputTopic> <outputTopic> <sigma> <startingOffsets> <maxOffsetsPerTrigger>\n" +
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "inputTopic = Topic will be subscribed to.\n" +
                 "outputTopic = Output topic, where values will be written to\n" +
-                "sigma = Integer value. How many standard deviations above or bellow average is considered an outlier?";
+                "sigma = Integer value. How many standard deviations above or bellow average is considered an outlier?\n" +
+                "startingOffsets = Which Kafka Offset to use. Use -2 for earliest, -1 for latest or use a total offset\n" +
+                "maxOffsetsPerTrigger = How many messages should be consumed at once (max)";
 
-        if (args.length != 5) {
+        if (args.length != 7) {
             System.out.println(errorMessage);
             return;
         }
@@ -32,12 +34,15 @@ public class OutlierDetection {
         boolean loggingEnabled;
         String hostlist, inputTopic, outputTopic;
         int sigma;
+        long startingOffsets, maxOffsetsPerTrigger;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
             hostlist = args[1];
             inputTopic = args[2];
             outputTopic = args[3];
             sigma = Integer.parseInt(args[4]);
+            startingOffsets = Long.parseLong(args[5]);
+            maxOffsetsPerTrigger = Long.parseLong(args[6]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -56,7 +61,8 @@ public class OutlierDetection {
                 .format("kafka")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("subscribe", inputTopic)
-                .option("startingOffsets", "earliest")
+                .option("startingOffsets", "{\"" + inputTopic + "\":{\"0\":" + startingOffsets + "}}")
+                .option("maxOffsetsPerTrigger", maxOffsetsPerTrigger)
                 .load();
 
         //Prepare the schema
