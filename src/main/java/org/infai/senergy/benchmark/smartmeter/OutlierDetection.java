@@ -23,7 +23,7 @@ public class OutlierDetection {
                 "inputTopic = Topic will be subscribed to.\n" +
                 "outputTopic = Output topic, where values will be written to\n" +
                 "sigma = Integer value. How many standard deviations above or bellow average is considered an outlier?\n" +
-                "startingOffsets = Which Kafka Offset to use. Use -2 for earliest, -1 for latest or use a total offset\n" +
+                "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
                 "maxOffsetsPerTrigger = How many messages should be consumed at once (max)";
 
         if (args.length != 7) {
@@ -32,16 +32,16 @@ public class OutlierDetection {
         }
         //Parameter configuration
         boolean loggingEnabled;
-        String hostlist, inputTopic, outputTopic;
+        String hostlist, inputTopic, outputTopic, startingOffsets;
         int sigma;
-        long startingOffsets, maxOffsetsPerTrigger;
+        long maxOffsetsPerTrigger;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
             hostlist = args[1];
             inputTopic = args[2];
             outputTopic = args[3];
             sigma = Integer.parseInt(args[4]);
-            startingOffsets = Long.parseLong(args[5]);
+            startingOffsets = args[5];
             maxOffsetsPerTrigger = Long.parseLong(args[6]);
         } catch (Exception e) {
             System.out.println(errorMessage);
@@ -61,7 +61,7 @@ public class OutlierDetection {
                 .format("kafka")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("subscribe", inputTopic)
-                .option("startingOffsets", "{\"" + inputTopic + "\":{\"0\":" + startingOffsets + "}}")
+                .option("startingOffsets", startingOffsets)
                 .option("maxOffsetsPerTrigger", maxOffsetsPerTrigger)
                 .load();
 
