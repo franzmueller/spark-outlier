@@ -17,23 +17,24 @@ import org.infai.senergy.benchmark.util.SmartmeterSchema;
 public class OutlierDetection {
     public static void main(String[] args) {
         //Usage check
-        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.OutlierDetection <logging> <hostlist> <inputTopic> <outputTopic> <sigma> <startingOffsets> <maxOffsetsPerTrigger>\n" +
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.OutlierDetection <logging> <hostlist> <inputTopic> <outputTopic> <sigma> <startingOffsets> <maxOffsetsPerTrigger> <shufflePartitions>\n" +
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "inputTopic = Topic will be subscribed to.\n" +
                 "outputTopic = Output topic, where values will be written to\n" +
                 "sigma = Integer value. How many standard deviations above or bellow average is considered an outlier?\n" +
                 "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
-                "maxOffsetsPerTrigger = How many messages should be consumed at once (max)";
+                "maxOffsetsPerTrigger = How many messages should be consumed at once (max)\n" +
+                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)";
 
-        if (args.length != 7) {
+        if (args.length != 8) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
         boolean loggingEnabled;
         String hostlist, inputTopic, outputTopic, startingOffsets;
-        int sigma;
+        int sigma, shufflePartitions;
         long maxOffsetsPerTrigger;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
@@ -43,6 +44,7 @@ public class OutlierDetection {
             sigma = Integer.parseInt(args[4]);
             startingOffsets = args[5];
             maxOffsetsPerTrigger = Long.parseLong(args[6]);
+            shufflePartitions = Integer.parseInt(args[7]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -53,6 +55,7 @@ public class OutlierDetection {
                 .builder()
                 .appName("SmartMeter OutlierDetection")
                 .config("spark.eventLog.enabled", loggingEnabled)
+                .config("spark.sql.shuffle.partitions", shufflePartitions)
                 .getOrCreate();
 
         //Create DataSet representing the stream of input lines from kafka
