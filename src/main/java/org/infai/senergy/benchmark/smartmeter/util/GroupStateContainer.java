@@ -1,13 +1,18 @@
 package org.infai.senergy.benchmark.smartmeter.util;
 
+import org.infai.senergy.benchmark.util.Welford;
+
 import java.io.Serializable;
 import java.sql.Timestamp;
-import java.util.List;
 
 public class GroupStateContainer implements Serializable {
     protected Double value = 0.0;
     protected Timestamp time;
-    protected List<Double> diffs;
+    protected Welford welford;
+
+    public GroupStateContainer() {
+        welford = new Welford();
+    }
 
     public Double getValue() {
         return value;
@@ -25,11 +30,11 @@ public class GroupStateContainer implements Serializable {
         this.time = time;
     }
 
-    public List<Double> getDiffs() {
-        return diffs;
+    public Welford getWelford() {
+        return welford;
     }
 
-    public void setDiffs(List<Double> diffs) {
-        this.diffs = diffs;
+    public void setWelford(Welford welford) {
+        this.welford = welford;
     }
 }

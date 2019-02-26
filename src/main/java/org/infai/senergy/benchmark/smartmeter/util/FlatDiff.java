@@ -3,6 +3,7 @@ package org.infai.senergy.benchmark.smartmeter.util;
 import org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.streaming.GroupState;
+import org.infai.senergy.benchmark.util.Welford;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
         Timestamp oldTime, newTime;
         GroupStateContainer newState;
         RowWithDiff newRowWithDiff;
-        List<Double> diffs;
+        Welford welford;
 
         Row row;
         while(values.hasNext()) {
@@ -35,35 +36,20 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
             if(state.exists()) {
                 oldValue = state.get().getValue();
                 oldTime = state.get().getTime();
-                diffs = state.get().getDiffs();
+                welford = state.get().getWelford();
 
                 long timeDiff;
                 if ((timeDiff = newTime.getTime() - oldTime.getTime()) <= 0) {
                     continue; //Out of order or same timestamp. Skip this value and won't take it into consideration.
                 }
                 diff = (newValue - oldValue) / ((double) timeDiff);
-                diffs.add(diff);
-
-                //Compute average
-                double sum = 0.0;
-                for (Double d : diffs) {
-                    sum += d;
-                }
-                avg = sum / diffs.size();
-
-                //Compute stddev
-                sum = 0.0;
-                for (Double d : diffs) {
-                    sum += (d - avg) * (d - avg);
-                }
-                sum /= diffs.size();
-                stddev = Math.sqrt(sum);
+                welford.update(diff);
+                avg = welford.mean();
+                stddev = welford.std();
             }else{
-                diff = 0.0;
-                diffs = new ArrayList<>();
-                diffs.add(diff);
-                avg = diff;
+                avg = 0.0;
                 stddev = 0.0;
+                diff = 0.0;
             }
             newRowWithDiff = new RowWithDiff();
             newRowWithDiff.setCONSUMPTION(newValue);
@@ -78,7 +64,6 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
             newState = new GroupStateContainer();
             newState.setTime(newTime);
             newState.setValue(newValue);
-            newState.setDiffs(diffs);
             state.update(newState);
         }
         return rowsWithDiff.iterator();
