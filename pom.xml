@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <name>spark-outlier</name>
   <packaging>jar</packaging>
-  <version>1.0</version>
+    <version>0.1.4</version>
   <build>
     <finalName>${project.artifactId}</finalName>
     <plugins>
