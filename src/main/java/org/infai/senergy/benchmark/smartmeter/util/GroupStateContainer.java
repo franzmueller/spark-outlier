@@ -10,10 +10,6 @@ public class GroupStateContainer implements Serializable {
     protected Timestamp time;
     protected Welford welford;
 
-    public GroupStateContainer() {
-        welford = new Welford();
-    }
-
     public Double getValue() {
         return value;
     }

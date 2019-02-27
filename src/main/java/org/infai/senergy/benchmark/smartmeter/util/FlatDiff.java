@@ -20,23 +20,24 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
 
     //Update function
     @Override
-    public Iterator<RowWithDiff> call(String key, Iterator<Row> values, GroupState<GroupStateContainer> state) {
+    public Iterator<RowWithDiff> call(String key, Iterator<Row> values, GroupState<GroupStateContainer> groupState) {
         List<RowWithDiff> rowsWithDiff = new ArrayList<>();
         Double oldValue, diff, newValue, avg, stddev;
         Timestamp oldTime, newTime;
-        GroupStateContainer newState;
         RowWithDiff newRowWithDiff;
         Welford welford;
+        GroupStateContainer state;
 
         Row row;
         while(values.hasNext()) {
             row = values.next();
             newValue = row.getDouble(row.fieldIndex("CONSUMPTION"));
             newTime = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
-            if(state.exists()) {
-                oldValue = state.get().getValue();
-                oldTime = state.get().getTime();
-                welford = state.get().getWelford();
+            if (groupState.exists()) {
+                state = groupState.get();
+                oldValue = state.getValue();
+                oldTime = state.getTime();
+                welford = state.getWelford();
 
                 long timeDiff;
                 if ((timeDiff = newTime.getTime() - oldTime.getTime()) <= 0) {
@@ -50,6 +51,9 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
                 avg = 0.0;
                 stddev = 0.0;
                 diff = 0.0;
+                state = new GroupStateContainer();
+                welford = new Welford();
+                state.setWelford(welford);
             }
             newRowWithDiff = new RowWithDiff();
             newRowWithDiff.setCONSUMPTION(newValue);
@@ -61,10 +65,10 @@ public class FlatDiff implements FlatMapGroupsWithStateFunction<String, Row, Gro
             newRowWithDiff.setSTDDEV_DIFF(stddev);
 
             rowsWithDiff.add(newRowWithDiff);
-            newState = new GroupStateContainer();
-            newState.setTime(newTime);
-            newState.setValue(newValue);
-            state.update(newState);
+            state.setTime(newTime);
+            state.setValue(newValue);
+
+            groupState.update(state);
         }
         return rowsWithDiff.iterator();
     }
