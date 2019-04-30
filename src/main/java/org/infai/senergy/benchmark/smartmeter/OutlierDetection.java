@@ -7,10 +7,7 @@ import org.apache.spark.sql.streaming.OutputMode;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
-import org.infai.senergy.benchmark.smartmeter.util.ConsumptionMapper;
-import org.infai.senergy.benchmark.smartmeter.util.FlatDiff;
-import org.infai.senergy.benchmark.smartmeter.util.GroupStateContainer;
-import org.infai.senergy.benchmark.smartmeter.util.RowWithDiff;
+import org.infai.senergy.benchmark.smartmeter.util.*;
 import org.infai.senergy.benchmark.util.SmartmeterSchema;
 
 
@@ -84,8 +81,11 @@ public class OutlierDetection {
         Dataset<Row> outliers = diffed.withColumn("SIGMA", diffed.col("DIFF").minus(diffed.col("AVG_DIFF")).divide(diffed.col("STDDEV_DIFF")))
                 .where("SIGMA > " + sigma + " OR SIGMA < " + (sigma * -1));
 
+        Dataset<Row> timeCounts = outliers.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
+                .flatMapGroupsWithState(new FlatTimeanalysis(), OutputMode.Append(), Encoders.bean(TimeCounter.class), Encoders.bean(TimeRow.class), GroupStateTimeout.NoTimeout());
+
         //Write outliers to kafka
-        outliers.toJSON()
+        timeCounts.toJSON()
                 .writeStream()
                 .format("kafka")
                 .option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
