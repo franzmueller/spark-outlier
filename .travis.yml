@@ -3,7 +3,7 @@ before_deploy:
       # Set up git user name and tag this commit
       - git config --local user.name $GIT_USER
       - git config --local user.email $GIT_EMAIL
-      - git tag "$(git branch | grep \* | cut -d ' ' -f2)-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
+      - git tag "$TRAVIS_BRANCH-$(date +'%Y%m%d%H%M%S')-$(git log --format=%h -1)"
 deploy:
   provider: releases
   prerelease: true
