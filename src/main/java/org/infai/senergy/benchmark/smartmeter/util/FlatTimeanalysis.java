@@ -36,30 +36,7 @@ public class FlatTimeanalysis implements FlatMapGroupsWithStateFunction<String, 
 
             timeRow = new TimeRow();
             timeRow.setMETER_ID(s);
-            timeRow.setOne(timeCounts[0]);
-            timeRow.setTwo(timeCounts[1]);
-            timeRow.setThree(timeCounts[2]);
-            timeRow.setFour(timeCounts[3]);
-            timeRow.setFive(timeCounts[4]);
-            timeRow.setSix(timeCounts[5]);
-            timeRow.setSeven(timeCounts[6]);
-            timeRow.setEight(timeCounts[7]);
-            timeRow.setNine(timeCounts[8]);
-            timeRow.setTen(timeCounts[9]);
-            timeRow.setEleven(timeCounts[10]);
-            timeRow.setTwelfe(timeCounts[11]);
-            timeRow.setThirteen(timeCounts[12]);
-            timeRow.setFourteen(timeCounts[13]);
-            timeRow.setFiveteen(timeCounts[14]);
-            timeRow.setSixteen(timeCounts[15]);
-            timeRow.setSeventeen(timeCounts[16]);
-            timeRow.setEighteen(timeCounts[17]);
-            timeRow.setNineteen(timeCounts[18]);
-            timeRow.setTwenty(timeCounts[19]);
-            timeRow.setTwentyOne(timeCounts[20]);
-            timeRow.setTwentytwo(timeCounts[21]);
-            timeRow.setTwentythree(timeCounts[22]);
-            timeRow.setTwentyfour(timeCounts[23]);
+            timeRow.setTimeCounts(timeCounts);
 
             timeRows.add(timeRow);
         }
