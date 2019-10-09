@@ -77,8 +77,8 @@ public class SegmentClassifier {
                 .as("data"))
                 .select("data.*");
 
-        Dataset<Row> training = df.where(df.col("LABEL").isNotNull());
-        Dataset<Row> test = df.where(df.col("LABEL").isNull());
+        Dataset<Row> training = df.where(df.col("SEGMENT").isNotNull());
+        Dataset<Row> test = df.where(df.col("SEGMENT").isNull());
 
         //Create classifier
         Classifier classifier = new RandomForestClassifier();
