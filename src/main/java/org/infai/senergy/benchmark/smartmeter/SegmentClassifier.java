@@ -1,11 +1,10 @@
 package org.infai.senergy.benchmark.smartmeter;
 
-import org.apache.spark.ml.Pipeline;
-import org.apache.spark.ml.PipelineModel;
-import org.apache.spark.ml.PipelineStage;
+import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.Predictor;
 import org.apache.spark.ml.classification.Classifier;
 import org.apache.spark.ml.classification.RandomForestClassifier;
+import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
@@ -77,22 +76,45 @@ public class SegmentClassifier {
                 .as("data"))
                 .select("data.*");
 
-        Dataset<Row> training = df.where(df.col("SEGMENT").isNotNull());
-        Dataset<Row> test = df.where(df.col("SEGMENT").isNull());
+
+        //Create indexers
+        StringIndexer segmentIndexer = new StringIndexer()
+                .setInputCol("SEGMENT")
+                .setOutputCol("indexedSEGMENT");
+        StringIndexer meterIndexer = new StringIndexer()
+                .setInputCol("METER_ID")
+                .setOutputCol("indexedMETER_ID");
+        StringIndexer timestampIndexer = new StringIndexer()
+                .setInputCol("METER_ID")
+                .setOutputCol("indexedMETER_ID");
+
+        //Create assembler
+        String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "indexedTIMESTAMP_UTC"};
+        VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
+
+
+        //Index data
+        df = meterIndexer.fit(df).transform(df);
+        df = timestampIndexer.fit(df).transform(df);
+        df = assembler.transform(df);
+
+        //Create training data and index segments
+        Dataset<Row> trainingData = df.where(df.col("SEGMENT").isNotNull());
+        trainingData = segmentIndexer.fit(trainingData).transform(trainingData);
+
+        //Create test data
+        Dataset<Row> testData = df.where(df.col("SEGMENT").isNull());
 
         //Create classifier
         Classifier classifier = new RandomForestClassifier();
-        Predictor predictor = classifier.setLabelCol("SEGMENT");
-        String[] featuresCols = {"METER_ID", "CONSUMPTION", "TIMESTAMP_UTC"};
-        VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
-
+        Predictor predictor = classifier.setLabelCol("indexedSEGMENT");
         predictor = predictor.setFeaturesCol("FEATURES");
         predictor = predictor.setPredictionCol("PREDICTION");
 
-        Pipeline pipeline = new Pipeline().setStages(new PipelineStage[]{assembler, predictor});
+        PredictionModel model = predictor.fit(trainingData);
 
-        PipelineModel model = pipeline.fit(training);
-        Dataset<Row> segmented = model.transform(test);
+        Dataset segmented = model.transform(testData);
+
 
         //Write outliers to kafka
         segmented.toJSON()
