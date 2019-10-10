@@ -67,7 +67,7 @@ class SegmentClassifierSink implements Sink {
                 .toJSON()
                 .write()
                 .format("kafka")
-                .option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
+                //.option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("topic", outputTopic);
     }
