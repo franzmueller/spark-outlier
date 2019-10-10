@@ -1,5 +1,7 @@
 package org.infai.senergy.benchmark.smartmeter;
 
+import org.apache.spark.ml.Pipeline;
+import org.apache.spark.ml.PipelineStage;
 import org.apache.spark.ml.PredictionModel;
 import org.apache.spark.ml.Predictor;
 import org.apache.spark.ml.classification.Classifier;
@@ -93,13 +95,19 @@ public class SegmentClassifier {
         VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
 
 
+        Pipeline prep = new Pipeline().setStages(new PipelineStage[]{meterIndexer, timestampIndexer, assembler});
+        Dataset<Row> prepared = prep.fit(df).transform(df);
+
+        /*
         //Index data
         df = meterIndexer.fit(df).transform(df);
         df = timestampIndexer.fit(df).transform(df);
         df = assembler.transform(df);
 
+         */
+
         //Create training data and index segments
-        Dataset<Row> trainingData = df.where(df.col("SEGMENT").isNotNull());
+        Dataset<Row> trainingData = prepared.where(df.col("SEGMENT").isNotNull());
         trainingData = segmentIndexer.fit(trainingData).transform(trainingData);
 
         //Create test data
