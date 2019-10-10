@@ -1,7 +1,9 @@
 package org.infai.senergy.benchmark.smartmeter;
 
-import org.apache.spark.ml.*;
-import org.apache.spark.ml.classification.Classifier;
+import org.apache.spark.ml.Pipeline;
+import org.apache.spark.ml.PipelineModel;
+import org.apache.spark.ml.PipelineStage;
+import org.apache.spark.ml.Transformer;
 import org.apache.spark.ml.classification.RandomForestClassifier;
 import org.apache.spark.ml.feature.SQLTransformer;
 import org.apache.spark.ml.feature.StringIndexer;
@@ -27,16 +29,17 @@ public class SegmentClassifier {
                 "outputTopic = Output topic, where values will be written to\n" +
                 "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
                 "maxOffsetsPerTrigger = How many messages should be consumed at once (max)\n" +
-                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)";
+                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)" +
+                "maxBins = To be used for RandomForest config";
 
-        if (args.length != 8) {
+        if (args.length != 9) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
         boolean loggingEnabled;
         String hostlist, inputTopicTraining, inputTopicTest, outputTopic, startingOffsets;
-        int shufflePartitions;
+        int shufflePartitions, maxBins;
         long maxOffsetsPerTrigger;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
@@ -47,6 +50,7 @@ public class SegmentClassifier {
             startingOffsets = args[5];
             maxOffsetsPerTrigger = Long.parseLong(args[6]);
             shufflePartitions = Integer.parseInt(args[7]);
+            maxBins = Integer.parseInt(args[8]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -95,13 +99,14 @@ public class SegmentClassifier {
         String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"};
         VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
 
-        Classifier classifier = new RandomForestClassifier();
+        RandomForestClassifier classifier = new RandomForestClassifier();
+        classifier = classifier.setProbabilityCol("PREDICTION_PROB");
+        classifier = classifier.setLabelCol("indexedSEGMENT");
+        classifier = classifier.setFeaturesCol("FEATURES");
+        classifier = classifier.setPredictionCol("PREDICTION");
+        classifier.setMaxBins(maxBins);
 
-        Predictor predictor = classifier.setLabelCol("indexedSEGMENT");
-        predictor = predictor.setFeaturesCol("FEATURES");
-        predictor = predictor.setPredictionCol("PREDICTION");
-
-        Pipeline trainingPipeline = new Pipeline().setStages(new PipelineStage[]{/*meterIndexer,*/ segmentIndexer, sqlTransformer, assembler, predictor});
+        Pipeline trainingPipeline = new Pipeline().setStages(new PipelineStage[]{meterIndexer, segmentIndexer, sqlTransformer, assembler, classifier});
         PipelineModel model = trainingPipeline.fit(trainingData);
 
 
