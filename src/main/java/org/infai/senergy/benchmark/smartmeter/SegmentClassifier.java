@@ -1,9 +1,6 @@
 package org.infai.senergy.benchmark.smartmeter;
 
-import org.apache.spark.sql.Dataset;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.SparkSession;
-import org.apache.spark.sql.functions;
+import org.apache.spark.sql.*;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
@@ -69,6 +66,10 @@ public class SegmentClassifier {
         Dataset<Row> df = ds.select(functions.from_json(ds.col("value").cast(DataTypes.StringType), schema)
                 .as("data"))
                 .select("data.*");
+
+        SQLContext sqlContext = spark.sqlContext();
+        sqlContext.setConf("hostlist", hostlist);
+        sqlContext.setConf("outputTopic", outputTopic);
 
         df.writeStream().format("org.infai.senergy.benchmark.smartmeter.util.SegmentClassifierSinkProvider").start();
 /*

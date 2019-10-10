@@ -2,6 +2,7 @@ package org.infai.senergy.benchmark.smartmeter.util;
 
 import org.apache.spark.ml.*;
 import org.apache.spark.ml.classification.Classifier;
+import org.apache.spark.ml.classification.RandomForestClassifier;
 import org.apache.spark.ml.feature.SQLTransformer;
 import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.VectorAssembler;
@@ -15,19 +16,9 @@ import scala.collection.Seq;
 import scala.collection.immutable.Map;
 
 public class SegmentClassifierSinkProvider implements StreamSinkProvider {
-    String hostlist, outputTopic;
-    Classifier classifier;
-
-    public SegmentClassifierSinkProvider(String hostlist, String outputTopic, Classifier classifier) {
-        super();
-        this.hostlist = hostlist;
-        this.outputTopic = outputTopic;
-        this.classifier = classifier;
-    }
-
     @Override
     public Sink createSink(SQLContext sqlContext, Map<String, String> map, Seq<String> seq, OutputMode outputMode) {
-        return new SegmentClassifierSink(sqlContext, hostlist, outputTopic, classifier);
+        return new SegmentClassifierSink(sqlContext);
     }
 }
 
@@ -38,11 +29,11 @@ class SegmentClassifierSink implements Sink {
     String hostlist, outputTopic;
     Classifier classifier;
 
-    public SegmentClassifierSink(SQLContext sqlContext, String hostlist, String outputTopic, Classifier classifier) {
+    public SegmentClassifierSink(SQLContext sqlContext) {
         super();
-        this.hostlist = hostlist;
-        this.outputTopic = outputTopic;
-        this.classifier = classifier;
+        this.hostlist = sqlContext.getConf("hostlist");
+        this.outputTopic = sqlContext.getConf("outputTopic");
+        this.classifier = new RandomForestClassifier(); //TODO changable
         this.sqlContext = sqlContext;
         training = sqlContext.emptyDataFrame();
     }
@@ -74,11 +65,10 @@ class SegmentClassifierSink implements Sink {
 
         trainingPipelineModel.transform(dataset)
                 .toJSON()
-                .writeStream()
+                .write()
                 .format("kafka")
                 .option("checkpointLocation", "checkpoints/smartmeter/outlierdetecion")
                 .option("kafka.bootstrap.servers", hostlist)
-                .option("topic", outputTopic)
-                .start();
+                .option("topic", outputTopic);
     }
 }
