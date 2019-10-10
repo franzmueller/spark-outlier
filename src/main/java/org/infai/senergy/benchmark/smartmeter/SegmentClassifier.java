@@ -1,11 +1,9 @@
 package org.infai.senergy.benchmark.smartmeter;
 
-import org.apache.spark.ml.Pipeline;
-import org.apache.spark.ml.PipelineStage;
-import org.apache.spark.ml.PredictionModel;
-import org.apache.spark.ml.Predictor;
+import org.apache.spark.ml.*;
 import org.apache.spark.ml.classification.Classifier;
 import org.apache.spark.ml.classification.RandomForestClassifier;
+import org.apache.spark.ml.feature.SQLTransformer;
 import org.apache.spark.ml.feature.StringIndexer;
 import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.sql.Dataset;
@@ -86,16 +84,15 @@ public class SegmentClassifier {
         StringIndexer meterIndexer = new StringIndexer()
                 .setInputCol("METER_ID")
                 .setOutputCol("indexedMETER_ID");
-        StringIndexer timestampIndexer = new StringIndexer()
-                .setInputCol("TIMESTAMP_UTC")
-                .setOutputCol("indexedTIMESTAMP_UTC");
+
+        Transformer sqlTransformer = new SQLTransformer().setStatement("SELECT CONSUMPTION, indexedSEGMENT, indexedMETER, unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__")
 
         //Create assembler
-        String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "indexedTIMESTAMP_UTC"};
+        String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"};
         VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
 
 
-        Pipeline prep = new Pipeline().setStages(new PipelineStage[]{meterIndexer, timestampIndexer, assembler});
+        Pipeline prep = new Pipeline().setStages(new PipelineStage[]{meterIndexer, sqlTransformer, assembler});
         Dataset<Row> prepared = prep.fit(df).transform(df);
 
         /*
