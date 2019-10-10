@@ -87,8 +87,8 @@ public class SegmentClassifier {
                 .setInputCol("METER_ID")
                 .setOutputCol("indexedMETER_ID");
         StringIndexer timestampIndexer = new StringIndexer()
-                .setInputCol("METER_ID")
-                .setOutputCol("indexedMETER_ID");
+                .setInputCol("TIMESTAMP_UTC")
+                .setOutputCol("indexedTIMESTAMP_UTC");
 
         //Create assembler
         String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "indexedTIMESTAMP_UTC"};
