@@ -83,14 +83,16 @@ public class SegmentClassifier {
         StringIndexer segmentIndexer = new StringIndexer()
                 .setInputCol("SEGMENT")
                 .setOutputCol("indexedSEGMENT");
-        StringIndexer meterIndexer = new StringIndexer()
+        /*StringIndexer meterIndexer = new StringIndexer()
                 .setInputCol("METER_ID")
                 .setOutputCol("indexedMETER_ID");
 
-        Transformer sqlTransformer = new SQLTransformer().setStatement("SELECT CONSUMPTION, indexedSEGMENT, indexedMETER_ID, unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
+         */
+
+        Transformer sqlTransformer = new SQLTransformer().setStatement("SELECT CONSUMPTION, indexedSEGMENT, "/*indexedMETER_ID*/ + ", unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
 
         //Create assembler
-        String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"};
+        String[] featuresCols = {/*"indexedMETER_ID",*/ "CONSUMPTION", "unixTIMESTAMP_UTC"};
         VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
 
         Classifier classifier = new RandomForestClassifier();
@@ -99,7 +101,7 @@ public class SegmentClassifier {
         predictor = predictor.setFeaturesCol("FEATURES");
         predictor = predictor.setPredictionCol("PREDICTION");
 
-        Pipeline trainingPipeline = new Pipeline().setStages(new PipelineStage[]{meterIndexer, segmentIndexer, sqlTransformer, assembler, predictor});
+        Pipeline trainingPipeline = new Pipeline().setStages(new PipelineStage[]{/*meterIndexer,*/ segmentIndexer, sqlTransformer, assembler, predictor});
         PipelineModel model = trainingPipeline.fit(trainingData);
 
 
