@@ -47,6 +47,7 @@ public class SegmentClassifier {
                 .appName("SmartMeter SegmentClassifier")
                 .config("spark.eventLog.enabled", loggingEnabled)
                 .config("spark.sql.shuffle.partitions", shufflePartitions)
+                .config("spark.sql.streaming.checkpointLocation", "checkpoints")
                 .getOrCreate();
 
         //Create DataSet representing the stream of input lines from kafka
