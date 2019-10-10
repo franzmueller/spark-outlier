@@ -95,7 +95,7 @@ public class SegmentClassifier {
                 .setOutputCol("indexedMETER_ID")
                 .setHandleInvalid("keep");
 
-        Transformer sqlTransformer = new SQLTransformer().setStatement("SELECT CONSUMPTION, indexedSEGMENT, indexedMETER_ID, unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
+        Transformer sqlTransformer = new SQLTransformer().setStatement("SELECT CONSUMPTION, SEGMENT, METER_ID, TIMESTAMP_UTC, indexedSEGMENT, indexedMETER_ID, unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
 
         //Create assembler
         String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"};
