@@ -30,16 +30,17 @@ public class SegmentClassifier {
                 "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
                 "maxOffsetsPerTrigger = How many messages should be consumed at once (max)\n" +
                 "shufflePartitions = How many shuffle partitions Spark should use (default is 200)" +
-                "maxBins = To be used for RandomForest config";
+                "maxBins = To be used for RandomForest config" +
+                "maxMemory = Memory to be used for classification";
 
-        if (args.length != 9) {
+        if (args.length != 10) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
         boolean loggingEnabled;
         String hostlist, inputTopicTraining, inputTopicTest, outputTopic, startingOffsets;
-        int shufflePartitions, maxBins;
+        int shufflePartitions, maxBins, maxMemory;
         long maxOffsetsPerTrigger;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
@@ -51,6 +52,7 @@ public class SegmentClassifier {
             maxOffsetsPerTrigger = Long.parseLong(args[6]);
             shufflePartitions = Integer.parseInt(args[7]);
             maxBins = Integer.parseInt(args[8]);
+            maxMemory = Integer.parseInt(args[9]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -104,7 +106,8 @@ public class SegmentClassifier {
         classifier = classifier.setLabelCol("indexedSEGMENT");
         classifier = classifier.setFeaturesCol("FEATURES");
         classifier = classifier.setPredictionCol("PREDICTION");
-        classifier.setMaxBins(maxBins);
+        classifier = classifier.setMaxBins(maxBins);
+        classifier = classifier.setMaxMemoryInMB(maxMemory);
 
         Pipeline trainingPipeline = new Pipeline().setStages(new PipelineStage[]{meterIndexer, segmentIndexer, sqlTransformer, assembler, classifier});
         PipelineModel model = trainingPipeline.fit(trainingData);
