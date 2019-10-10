@@ -1,11 +1,5 @@
 package org.infai.senergy.benchmark.smartmeter;
 
-import org.apache.spark.ml.*;
-import org.apache.spark.ml.classification.Classifier;
-import org.apache.spark.ml.classification.RandomForestClassifier;
-import org.apache.spark.ml.feature.SQLTransformer;
-import org.apache.spark.ml.feature.StringIndexer;
-import org.apache.spark.ml.feature.VectorAssembler;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -76,6 +70,8 @@ public class SegmentClassifier {
                 .as("data"))
                 .select("data.*");
 
+        df.writeStream().format("org.infai.senergy.benchmark.smartmeter.util.SegmentClassifierSinkProvider").start();
+/*
 
         //Create indexers
         StringIndexer segmentIndexer = new StringIndexer()
@@ -95,13 +91,13 @@ public class SegmentClassifier {
         Pipeline prep = new Pipeline().setStages(new PipelineStage[]{meterIndexer, sqlTransformer, assembler});
         Dataset<Row> prepared = prep.fit(df).transform(df);
 
-        /*
+
         //Index data
         df = meterIndexer.fit(df).transform(df);
         df = timestampIndexer.fit(df).transform(df);
         df = assembler.transform(df);
 
-         */
+
 
         //Create training data and index segments
         Dataset<Row> trainingData = prepared.where(df.col("SEGMENT").isNotNull());
@@ -129,7 +125,7 @@ public class SegmentClassifier {
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("topic", outputTopic)
                 .start();
-
+*/
         // Wait for termination
         try {
             spark.streams().awaitAnyTermination();
