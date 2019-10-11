@@ -117,7 +117,9 @@ public class SegmentClassifier {
                         "unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
 
         //Create assembler
-        String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"};
+        String[] featuresCols = useMETER_IDs ? new String[]{"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"}
+                : new String[]{"CONSUMPTION", "unixTIMESTAMP_UTC"};
+
         VectorAssembler assembler = new VectorAssembler().setInputCols(featuresCols).setOutputCol("FEATURES");
 
         RandomForestClassifier classifier = new RandomForestClassifier();
