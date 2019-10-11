@@ -62,7 +62,7 @@ public class SegmentClassifier {
             maxBins = Integer.parseInt(args[9]);
             maxMemory = Integer.parseInt(args[10]);
             maxDepth = Integer.parseInt(args[11]);
-            minInfoGain = Integer.parseInt(args[12]);
+            minInfoGain = Double.parseDouble(args[12]);
             minInstancesPerNode = Integer.parseInt(args[13]);
             numTrees = Integer.parseInt(args[14]);
         } catch (Exception e) {
