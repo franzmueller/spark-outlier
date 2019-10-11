@@ -3,7 +3,6 @@ package org.infai.senergy.benchmark.smartmeter;
 import org.apache.spark.ml.Pipeline;
 import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.ml.PipelineStage;
-import org.apache.spark.ml.Transformer;
 import org.apache.spark.ml.classification.RandomForestClassifier;
 import org.apache.spark.ml.feature.SQLTransformer;
 import org.apache.spark.ml.feature.StringIndexer;
@@ -21,7 +20,10 @@ import org.infai.senergy.benchmark.util.SmartmeterSchema;
 public class SegmentClassifier {
     public static void main(String[] args) {
         //Usage check
-        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.SegmentClassifier <logging> <hostlist> <inputTopicTraining> <inputTopicTest> <outputTopic> <sigma> <startingOffsets> <maxOffsetsPerTrigger> <shufflePartitions>\n" +
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.SegmentClassifier <logging> <hostlist> " +
+                "<inputTopicTraining> <inputTopicTest> <outputTopic> <sigma> <startingOffsets> <maxOffsetsPerTrigger> " +
+                "<shufflePartitions> <useMETER_IDs> <maxBins> <maxMemory> <maxDepth> <minInfoGain> <minInstancesPerNode> <numTrees>\n" +
+
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "inputTopicTraining = Topic of training data.\n" +
@@ -29,19 +31,24 @@ public class SegmentClassifier {
                 "outputTopic = Output topic, where values will be written to\n" +
                 "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
                 "maxOffsetsPerTrigger = How many messages should be consumed at once (max)\n" +
-                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)" +
-                "maxBins = To be used for RandomForest config" +
-                "maxMemory = Memory to be used for classification";
-
-        if (args.length != 10) {
+                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)\n" +
+                "useMETER_IDs = Whether or not to use METER_ID as a feature\n" +
+                "maxBins = To be used for RandomForest config\n" +
+                "maxMemory = Memory to be used for classification\n" +
+                "maxDepth = Max depth of tree\n" +
+                "minInfoGain\n" +
+                "minInstancesPerNode\n" +
+                "numTrees";
+        if (args.length != 15) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
-        boolean loggingEnabled;
+        boolean loggingEnabled, useMETER_IDs;
         String hostlist, inputTopicTraining, inputTopicTest, outputTopic, startingOffsets;
-        int shufflePartitions, maxBins, maxMemory;
+        int shufflePartitions, maxBins, maxMemory, maxDepth, minInstancesPerNode, numTrees;
         long maxOffsetsPerTrigger;
+        double minInfoGain;
         try {
             loggingEnabled = Boolean.parseBoolean(args[0]);
             hostlist = args[1];
@@ -51,8 +58,13 @@ public class SegmentClassifier {
             startingOffsets = args[5];
             maxOffsetsPerTrigger = Long.parseLong(args[6]);
             shufflePartitions = Integer.parseInt(args[7]);
-            maxBins = Integer.parseInt(args[8]);
-            maxMemory = Integer.parseInt(args[9]);
+            useMETER_IDs = Boolean.parseBoolean(args[8]);
+            maxBins = Integer.parseInt(args[9]);
+            maxMemory = Integer.parseInt(args[10]);
+            maxDepth = Integer.parseInt(args[11]);
+            minInfoGain = Integer.parseInt(args[12]);
+            minInstancesPerNode = Integer.parseInt(args[13]);
+            numTrees = Integer.parseInt(args[14]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -95,7 +107,14 @@ public class SegmentClassifier {
                 .setOutputCol("indexedMETER_ID")
                 .setHandleInvalid("keep");
 
-        Transformer sqlTransformer = new SQLTransformer().setStatement("SELECT CONSUMPTION, SEGMENT, METER_ID, TIMESTAMP_UTC, indexedSEGMENT, indexedMETER_ID, unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
+        SQLTransformer sqlTransformer = new SQLTransformer();
+
+        sqlTransformer = useMETER_IDs ? sqlTransformer.setStatement(
+                "SELECT CONSUMPTION, SEGMENT, METER_ID, TIMESTAMP_UTC, indexedSEGMENT, indexedMETER_ID, " +
+                        "unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__")
+                : sqlTransformer.setStatement(
+                "SELECT CONSUMPTION, SEGMENT, METER_ID, TIMESTAMP_UTC, indexedSEGMENT, " +
+                        "unix_timestamp(TIMESTAMP_UTC) AS unixTIMESTAMP_UTC FROM __THIS__");
 
         //Create assembler
         String[] featuresCols = {"indexedMETER_ID", "CONSUMPTION", "unixTIMESTAMP_UTC"};
@@ -108,8 +127,14 @@ public class SegmentClassifier {
         classifier = classifier.setPredictionCol("PREDICTION");
         classifier = classifier.setMaxBins(maxBins);
         classifier = classifier.setMaxMemoryInMB(maxMemory);
+        classifier = classifier.setMaxDepth(maxDepth);
+        classifier = classifier.setMinInfoGain(minInfoGain);
+        classifier = classifier.setMinInstancesPerNode(minInstancesPerNode);
+        classifier = classifier.setNumTrees(numTrees);
 
-        Pipeline trainingPipeline = new Pipeline().setStages(new PipelineStage[]{meterIndexer, segmentIndexer, sqlTransformer, assembler, classifier});
+        Pipeline trainingPipeline = useMETER_IDs ?
+                new Pipeline().setStages(new PipelineStage[]{meterIndexer, segmentIndexer, sqlTransformer, assembler, classifier})
+                : new Pipeline().setStages(new PipelineStage[]{segmentIndexer, sqlTransformer, assembler, classifier});
         PipelineModel model = trainingPipeline.fit(trainingData);
 
 
