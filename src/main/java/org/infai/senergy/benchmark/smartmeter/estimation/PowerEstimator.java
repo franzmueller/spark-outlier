@@ -22,14 +22,13 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
         List<RowWithEstimation> rowsWithEstimation = new ArrayList<>();
         PowerStateContainer state;
         Instances instances;
-        Classifier classifier;
+        Classifier classifier = new SMOreg();
         RowWithEstimation rowWithEstimation = new RowWithEstimation();
 
 
         if (groupState.exists()) {
             state = groupState.get();
             instances = state.getInstances();
-            classifier = state.getClassifier();
         } else {
             state = new PowerStateContainer();
             ArrayList<Attribute> attributesList = new ArrayList<>();
@@ -37,7 +36,6 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
             attributesList.add(new Attribute("value"));
             instances = new Instances("", attributesList, 1);
             instances.setClassIndex(1);
-            classifier = new SMOreg();
         }
 
         while (iterator.hasNext()) {
@@ -73,7 +71,6 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
 
         rowsWithEstimation.add(rowWithEstimation);
 
-        state.setClassifier(classifier);
         state.setInstances(instances);
         groupState.update(state);
         return rowsWithEstimation.iterator();
