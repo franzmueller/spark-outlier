@@ -57,9 +57,9 @@
       <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>nz.ac.waikato.cms.weka</groupId>
-      <artifactId>weka-stable</artifactId>
-      <version>3.8.0</version>
+      <groupId>nz.ac.waikato.cms.moa</groupId>
+      <artifactId>moa</artifactId>
+      <version>2019.05.0</version>
     </dependency>
   </dependencies>
   <properties>
