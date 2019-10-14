@@ -76,7 +76,7 @@ public class PowerEstimation {
 
         //Add PREDICTION & PREDICTION_TIMESTAMP column
         Dataset<Row> predicted = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
-                .flatMapGroupsWithState(new PowerEstimator(), OutputMode.Append(), Encoders.bean(PowerStateContainer.class), Encoders.bean(RowWithEstimation.class), GroupStateTimeout.NoTimeout());
+                .flatMapGroupsWithState(new PowerEstimator(), OutputMode.Append(), Encoders.javaSerialization(PowerStateContainer.class), Encoders.bean(RowWithEstimation.class), GroupStateTimeout.NoTimeout());
 
 
         //Write outliers to kafka
