@@ -75,7 +75,7 @@ public class PowerEstimation {
                 .select("data.*");
 
         //apply schema manually
-        df = df.selectExpr("SEGMENT, METER_ID, cast(CONSUMPTION as double), cast(TIMESTAMP_UTC as timestamp), cast(CONSUMPTION_EOY as double)");
+        df = df.selectExpr("SEGMENT", "METER_ID", "cast(CONSUMPTION as double)", "cast(TIMESTAMP_UTC as timestamp)", "cast(CONSUMPTION_EOY as double)");
         //Add PREDICTION & PREDICTION_TIMESTAMP column
         Dataset<Row> predicted = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
                 .flatMapGroupsWithState(new PowerEstimator(), OutputMode.Append(), Encoders.javaSerialization(PowerStateContainer.class), Encoders.bean(RowWithEstimation.class), GroupStateTimeout.NoTimeout());
