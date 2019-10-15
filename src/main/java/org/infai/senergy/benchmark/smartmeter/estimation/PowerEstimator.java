@@ -45,8 +45,15 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
         while (iterator.hasNext()) {
             //Get data
             Row row = iterator.next();
-            double value = row.getDouble(row.fieldIndex("CONSUMPTION"));
-            Timestamp TIMESTAMP_UTC = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
+            double value;
+            Timestamp TIMESTAMP_UTC;
+            try {
+                value = row.getDouble(row.fieldIndex("CONSUMPTION"));
+                TIMESTAMP_UTC = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
+            } catch (NullPointerException nexp) {
+                System.err.println("Could not get data, skipping this row");
+                continue;
+            }
             long timestampMillis = TIMESTAMP_UTC.getTime();
 
             //Prepare and train instance
@@ -71,10 +78,18 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
             rowWithEstimation.setCONSUMPTION(value);
             rowWithEstimation.setMETER_ID(key);
             rowWithEstimation.setTIMESTAMP_UTC(TIMESTAMP_UTC);
-            rowWithEstimation.setSEGMENT(row.getString(row.fieldIndex("SEGMENT")));
+            try {
+                rowWithEstimation.setSEGMENT(row.getString(row.fieldIndex("SEGMENT")));
+            } catch (NullPointerException nexp) {
+                System.err.println("Could not collect additional data from row");
+            }
+            try {
+                rowWithEstimation.setCONSUMPTION_EOY(row.getDouble(row.fieldIndex("CONSUMPTION_EOY")));
+            } catch (NullPointerException nexp) {
+                System.err.println("Could not collect additional data from row");
+            }
             rowWithEstimation.setPREDICTION(PREDICTION);
             rowWithEstimation.setPREDICTION_TIMESTAMP(new Timestamp((long) tsEOY));
-            rowWithEstimation.setCONSUMPTION_EOY(row.getDouble(row.fieldIndex("CONSUMPTION_EOY")));
             rowWithEstimation.setMESSAGES_USED_FOR_PREDICTION(state.getNumTrained());
             rowsWithEstimation.add(rowWithEstimation);
         }
