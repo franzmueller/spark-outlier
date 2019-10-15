@@ -47,13 +47,10 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
             Row row = iterator.next();
             double value;
             Timestamp TIMESTAMP_UTC;
-            try {
-                value = row.getDouble(row.fieldIndex("CONSUMPTION"));
-                TIMESTAMP_UTC = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
-            } catch (NullPointerException nexp) {
-                System.err.println("Could not get data, skipping this row");
-                continue;
-            }
+
+            value = row.getDouble(row.fieldIndex("CONSUMPTION"));
+            TIMESTAMP_UTC = row.getTimestamp(row.fieldIndex("TIMESTAMP_UTC"));
+
             long timestampMillis = TIMESTAMP_UTC.getTime();
 
             //Prepare and train instance
