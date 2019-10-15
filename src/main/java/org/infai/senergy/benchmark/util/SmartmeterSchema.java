@@ -9,6 +9,7 @@ public class SmartmeterSchema {
                 .add("SEGMENT", DataTypes.StringType)
                 .add("METER_ID", DataTypes.StringType)
                 .add("CONSUMPTION", DataTypes.DoubleType)
-                .add("TIMESTAMP_UTC", DataTypes.TimestampType);
+                .add("TIMESTAMP_UTC", DataTypes.TimestampType)
+                .add("CONSUMPTION_EOY", DataTypes.DoubleType);
     }
 }

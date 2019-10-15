@@ -9,6 +9,7 @@ import java.io.Serializable;
 public class PowerStateContainer implements Serializable {
     protected InstancesHeader header;
     protected Classifier classifier;
+    protected int numTrained;
 
     public Classifier getClassifier() {
         return classifier;
@@ -24,5 +25,13 @@ public class PowerStateContainer implements Serializable {
 
     public void setHeader(InstancesHeader header) {
         this.header = header;
+    }
+
+    public int getNumTrained() {
+        return numTrained;
+    }
+
+    public void setNumTrained(int numTrained) {
+        this.numTrained = numTrained;
     }
 }

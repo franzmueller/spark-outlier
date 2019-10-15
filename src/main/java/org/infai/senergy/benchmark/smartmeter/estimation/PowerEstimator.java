@@ -36,6 +36,8 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
             InstancesHeader header = new InstancesHeader(instances);
             state.setHeader(header);
 
+            state.setNumTrained(0);
+
             Classifier classifier = new AdaGrad();
             state.setClassifier(classifier);
         }
@@ -53,6 +55,7 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
             instance.setValue(0, timestampMillis);
             instance.setValue(1, value);
             state.getClassifier().trainOnInstance(instance);
+            state.setNumTrained(state.getNumTrained() + 1);
 
             //Regression
             Instance eoy = new DenseInstance(2);
@@ -71,6 +74,8 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
             rowWithEstimation.setSEGMENT(row.getString(row.fieldIndex("SEGMENT")));
             rowWithEstimation.setPREDICTION(PREDICTION);
             rowWithEstimation.setPREDICTION_TIMESTAMP(new Timestamp((long) tsEOY));
+            rowWithEstimation.setCONSUMPTION_EOY(row.getDouble(row.fieldIndex("CONSUMPTION_EOY")));
+            rowWithEstimation.setMESSAGES_USED_FOR_PREDICTION(state.getNumTrained());
             rowsWithEstimation.add(rowWithEstimation);
         }
         //Wrap it up

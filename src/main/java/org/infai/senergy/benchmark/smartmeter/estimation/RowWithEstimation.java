@@ -7,9 +7,11 @@ public class RowWithEstimation implements Serializable {
     protected String METER_ID;
     protected String SEGMENT;
     protected double CONSUMPTION;
+    protected double CONSUMPTION_EOY;
     protected Timestamp TIMESTAMP_UTC;
     protected Timestamp PREDICTION_TIMESTAMP;
     protected double PREDICTION;
+    protected int MESSAGES_USED_FOR_PREDICTION;
 
     public String getMETER_ID() {
         return METER_ID;
@@ -57,5 +59,21 @@ public class RowWithEstimation implements Serializable {
 
     public void setPREDICTION(double PREDICTION) {
         this.PREDICTION = PREDICTION;
+    }
+
+    public double getCONSUMPTION_EOY() {
+        return CONSUMPTION_EOY;
+    }
+
+    public void setCONSUMPTION_EOY(double CONSUMPTION_EOY) {
+        this.CONSUMPTION_EOY = CONSUMPTION_EOY;
+    }
+
+    public int getMESSAGES_USED_FOR_PREDICTION() {
+        return MESSAGES_USED_FOR_PREDICTION;
+    }
+
+    public void setMESSAGES_USED_FOR_PREDICTION(int MESSAGES_USED_FOR_PREDICTION) {
+        this.MESSAGES_USED_FOR_PREDICTION = MESSAGES_USED_FOR_PREDICTION;
     }
 }
