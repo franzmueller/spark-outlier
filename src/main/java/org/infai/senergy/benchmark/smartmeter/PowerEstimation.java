@@ -79,7 +79,7 @@ public class PowerEstimation {
                 .select("data.*");
 
         //apply schema manually
-        df = df.selectExpr("METER_ID", "cast(CONSUMPTION as double)", "cast(TIMESTAMP_UTC as timestamp)", "cast(CONSUMPTION_EOY as double)");
+        df = df.selectExpr("SEGMENT", "METER_ID", "cast(CONSUMPTION as double)", "cast(TIMESTAMP_UTC as timestamp)", "cast(CONSUMPTION_EOY as double)");
 
 
         //Add PREDICTION & PREDICTION_TIMESTAMP column
