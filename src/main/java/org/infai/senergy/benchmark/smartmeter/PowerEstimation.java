@@ -17,21 +17,24 @@ import org.infai.senergy.benchmark.util.SmartmeterSchema;
 public class PowerEstimation {
     public static void main(String[] args) {
         //Usage check
-        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.PowerEstimation <logging> <hostlist> <inputTopic> <outputTopic> <startingOffsets> <maxOffsetsPerTrigger> <shufflePartitions>\n" +
+        String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.PowerEstimation <logging> <hostlist>" +
+                " <inputTopic> <outputTopic> <startingOffsets> <maxOffsetsPerTrigger> <shufflePartitions> <debug>\n" +
+
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
                 "inputTopic = Topic will be subscribed to.\n" +
                 "outputTopic = Output topic, where values will be written to\n" +
                 "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
                 "maxOffsetsPerTrigger = How many messages should be consumed at once (max)\n" +
-                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)";
+                "shufflePartitions = How many shuffle partitions Spark should use (default is 200)\n" +
+                "debug = whether or not to print results to console";
 
-        if (args.length != 7) {
+        if (args.length != 8) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
-        boolean loggingEnabled;
+        boolean loggingEnabled, debug;
         String hostlist, inputTopic, outputTopic, startingOffsets;
         int shufflePartitions;
         long maxOffsetsPerTrigger;
@@ -43,6 +46,7 @@ public class PowerEstimation {
             startingOffsets = args[4];
             maxOffsetsPerTrigger = Long.parseLong(args[5]);
             shufflePartitions = Integer.parseInt(args[6]);
+            debug = Boolean.parseBoolean(args[7]);
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -89,6 +93,10 @@ public class PowerEstimation {
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("topic", outputTopic)
                 .start();
+
+        if (debug) {
+            predicted.writeStream().format("console").outputMode("append").start();
+        }
 
         // Wait for termination
         try {
