@@ -2,7 +2,7 @@ package org.infai.senergy.benchmark.smartmeter.estimation;
 
 import com.yahoo.labs.samoa.instances.*;
 import moa.classifiers.Classifier;
-import moa.classifiers.functions.AdaGrad;
+import moa.classifiers.meta.AdaptiveRandomForestRegressor;
 import org.apache.spark.api.java.function.FlatMapGroupsWithStateFunction;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.streaming.GroupState;
@@ -38,7 +38,8 @@ public class PowerEstimator implements FlatMapGroupsWithStateFunction<String, Ro
 
             state.setNumTrained(0);
 
-            Classifier classifier = new AdaGrad();
+            Classifier classifier = new AdaptiveRandomForestRegressor();
+            classifier.prepareForUse();
             state.setClassifier(classifier);
         }
 
