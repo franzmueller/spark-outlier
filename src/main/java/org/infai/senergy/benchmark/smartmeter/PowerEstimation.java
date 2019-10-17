@@ -81,10 +81,6 @@ public class PowerEstimation {
         //apply schema manually
         //df = df.selectExpr("SEGMENT", "METER_ID", "cast(CONSUMPTION as double)", "cast(TIMESTAMP_UTC as timestamp)", "cast(CONSUMPTION_EOY as double)");
 
-        if (debug) {
-            df.printSchema();
-            df.writeStream().format("console").outputMode("append").start();
-        }
 
         //Add PREDICTION & PREDICTION_TIMESTAMP column
         Dataset<Row> predicted = df.groupByKey((MapFunction) new ConsumptionMapper(), Encoders.STRING())
@@ -101,6 +97,9 @@ public class PowerEstimation {
                 .start();
 
         if (debug) {
+            ds.writeStream().format("console").outputMode("append").start();
+            df.printSchema();
+            df.writeStream().format("console").outputMode("append").start();
             predicted.writeStream().format("console").outputMode("append").start();
         }
 
