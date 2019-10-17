@@ -54,13 +54,17 @@
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-sql-kafka-0-10_2.12</artifactId>
       <version>2.4.4</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
-      <groupId>nz.ac.waikato.cms.moa</groupId>
-      <artifactId>moa</artifactId>
-      <version>2019.05.0</version>
+        <groupId>org.apache.spark</groupId>
+        <artifactId>spark-streaming-kafka-0-10_2.12</artifactId>
+        <version>2.4.4</version>
     </dependency>
+      <dependency>
+          <groupId>nz.ac.waikato.cms.moa</groupId>
+          <artifactId>moa</artifactId>
+          <version>2019.05.0</version>
+      </dependency>
       <dependency>
           <groupId>junit</groupId>
           <artifactId>junit</artifactId>
