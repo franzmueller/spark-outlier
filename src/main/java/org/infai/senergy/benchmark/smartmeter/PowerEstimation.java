@@ -82,6 +82,7 @@ public class PowerEstimation {
         df = df.selectExpr("SEGMENT", "METER_ID", "cast(CONSUMPTION as double)", "cast(TIMESTAMP_UTC as timestamp)", "cast(CONSUMPTION_EOY as double)");
 
         if (debug) {
+            df.printSchema();
             df.writeStream().format("console").outputMode("append").start();
         }
 
