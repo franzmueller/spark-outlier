@@ -18,7 +18,8 @@ public class PowerEstimation {
     public static void main(String[] args) {
         //Usage check
         String errorMessage = "Usage: org.infai.senergy.benchmark.smartmeter.PowerEstimation <logging> <hostlist>" +
-                " <inputTopic> <outputTopic> <startingOffsets> <maxOffsetsPerTrigger> <shufflePartitions> <debug>\n" +
+                " <inputTopic> <outputTopic> <startingOffsets> <maxOffsetsPerTrigger> <shufflePartitions> <debug>" +
+                " <checkpointLocation>\n" +
 
                 "logging = boolean\n" +
                 "hostlist = comma-separated list of kafka host:port\n" +
@@ -27,15 +28,16 @@ public class PowerEstimation {
                 "startingOffsets = Which Kafka Offset to use. Use earliest or latest\n" +
                 "maxOffsetsPerTrigger = How many messages should be consumed at once (max)\n" +
                 "shufflePartitions = How many shuffle partitions Spark should use (default is 200)\n" +
-                "debug = whether or not to print results to console";
+                "debug = whether or not to print results to console\n" +
+                "checkpointLocation = directory on a distributed file system";
 
-        if (args.length != 8) {
+        if (args.length != 9) {
             System.out.println(errorMessage);
             return;
         }
         //Parameter configuration
         boolean loggingEnabled, debug;
-        String hostlist, inputTopic, outputTopic, startingOffsets;
+        String hostlist, inputTopic, outputTopic, startingOffsets, checkpointLocation;
         int shufflePartitions;
         long maxOffsetsPerTrigger;
         try {
@@ -47,6 +49,7 @@ public class PowerEstimation {
             maxOffsetsPerTrigger = Long.parseLong(args[5]);
             shufflePartitions = Integer.parseInt(args[6]);
             debug = Boolean.parseBoolean(args[7]);
+            checkpointLocation = args[8];
         } catch (Exception e) {
             System.out.println(errorMessage);
             return;
@@ -91,7 +94,7 @@ public class PowerEstimation {
         predicted.toJSON()
                 .writeStream()
                 .format("kafka")
-                .option("checkpointLocation", "checkpoints/smartmeter/power_estimation")
+                .option("checkpointLocation", checkpointLocation + "/power_estimation")
                 .option("kafka.bootstrap.servers", hostlist)
                 .option("topic", outputTopic)
                 .start();
